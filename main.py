@@ -18,21 +18,25 @@ def registrar_temperatura():
         temperatura_atual = response.json()
 
         if temperatura_atual is None:
-            return {"erro": "Temperatura não disponível"}
+            return {"erro": "Temperatura nao disponivel"}
 
         temperatura_atual = round(float(temperatura_atual), 1)
 
-        # Buscar último histórico
+        # Buscar historico
         historico_resp = requests.get(URL_HISTORICO)
         historico = historico_resp.json()
 
         ultima_temp = None
         if historico:
             ultimos = list(historico.values())
-            ultima_temp_str = ultimos[-1]["temperatura_celsius"]
-            ultima_temp = float(ultima_temp_str.replace(" C", "").replace(",", "."))
+            ultima_str = ultimos[-1].get("temperatura_celsius", "").replace(" C", "").replace(",", ".")
+            if ultima_str:
+                try:
+                    ultima_temp = float(ultima_str)
+                except:
+                    ultima_temp = None
 
-        # Comparar com a última
+        # Registrar apenas se mudou
         if ultima_temp is None or temperatura_atual != ultima_temp:
             fuso = pytz.timezone("America/Sao_Paulo")
             agora = datetime.now(fuso)
@@ -49,16 +53,14 @@ def registrar_temperatura():
 
             requests.post(URL_HISTORICO, json=leitura)
 
-            return {
-                "mensagem": "Nova leitura registrada.",
-                "leitura": leitura
-            }
+            return leitura
 
         else:
             return {
-                "mensagem": "Sem mudança de temperatura.",
-                "temperatura": f"{temperatura_atual} C"
+                "mensagem": "Temperatura sem mudanca",
+                "temperatura_celsius": f"{temperatura_atual} C"
             }
 
     except Exception as e:
-        return {"erro": f"Erro: {str(e)}"}
+        return {"erro": str(e)}
+
