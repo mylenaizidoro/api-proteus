@@ -5,15 +5,15 @@ import pytz
 
 app = FastAPI()
 
-# Configuração
-URL_FIREBASE_ATUAL = "https://projetotemperaturaesp32-52b7d-default-rtdb.firebaseio.com/temperatura_ao_vivo.json"
-URL_FIREBASE_HISTORICO = "https://projetotemperaturaesp32-52b7d-default-rtdb.firebaseio.com/historico_temperaturas.json"
+# URLs do Firebase
+URL_ATUAL = "https://projetotemperaturaesp32-52b7d-default-rtdb.firebaseio.com/temperatura_ao_vivo.json"
+URL_HISTORICO = "https://projetotemperaturaesp32-52b7d-default-rtdb.firebaseio.com/historico_temperaturas.json"
 
 @app.get("/")
 def registrar_temperatura():
     try:
-        # Lê temperatura atual do sensor no Firebase
-        response = requests.get(URL_FIREBASE_ATUAL)
+        # Buscar temperatura atual
+        response = requests.get(URL_ATUAL)
         response.raise_for_status()
         temperatura_atual = response.json()
 
@@ -22,17 +22,17 @@ def registrar_temperatura():
 
         temperatura_atual = round(float(temperatura_atual), 1)
 
-        # Busca o último valor salvo no histórico
-        historico_resp = requests.get(URL_FIREBASE_HISTORICO)
+        # Buscar último histórico
+        historico_resp = requests.get(URL_HISTORICO)
         historico = historico_resp.json()
 
         ultima_temp = None
         if historico:
-            ultimos_registros = list(historico.values())
-            ultima_temp_raw = ultimos_registros[-1]["Temperatura (°C)"]
-            ultima_temp = float(ultima_temp_raw.replace(" ºC", "").replace(",", "."))
+            ultimos = list(historico.values())
+            ultima_temp_str = ultimos[-1]["temperatura_celsius"]
+            ultima_temp = float(ultima_temp_str.replace(" C", "").replace(",", "."))
 
-        # Se mudou, salva no histórico
+        # Comparar com a última
         if ultima_temp is None or temperatura_atual != ultima_temp:
             fuso = pytz.timezone("America/Sao_Paulo")
             agora = datetime.now(fuso)
@@ -40,25 +40,25 @@ def registrar_temperatura():
             hora = agora.strftime("%H:%M:%S")
 
             leitura = {
-                "Temperatura (°C)": f"{temperatura_atual} ºC",
-                "Usuário": "Coplac Curitiba",
-                "Máquina": "PH 02",
-                "Data": data,
-                "Hora": hora
+                "temperatura_celsius": f"{temperatura_atual} C",
+                "usuario": "Coplac Curitiba",
+                "maquina": "PH 02",
+                "data": data,
+                "hora": hora
             }
 
-            requests.post(URL_FIREBASE_HISTORICO, json=leitura)
+            requests.post(URL_HISTORICO, json=leitura)
 
             return {
-                "mensagem": "Nova temperatura registrada!",
+                "mensagem": "Nova leitura registrada.",
                 "leitura": leitura
             }
 
         else:
             return {
-                "mensagem": "Sem variação. Temperatura não registrada novamente.",
-                "temperatura_igual": f"{temperatura_atual} ºC"
+                "mensagem": "Sem mudança de temperatura.",
+                "temperatura": f"{temperatura_atual} C"
             }
 
     except Exception as e:
-        return {"erro": f"Erro ao registrar temperatura: {str(e)}"}
+        return {"erro": f"Erro: {str(e)}"}
