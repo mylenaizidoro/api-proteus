@@ -2,10 +2,10 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 import requests
 from datetime import datetime
+import pytz
 
 app = FastAPI()
 
-# Rota principal
 @app.get("/")
 async def mostrar_temperatura(request: Request):
     usuario = request.query_params.get("usuario", "Coplac")  # Padrão = Coplac
@@ -21,8 +21,12 @@ async def mostrar_temperatura(request: Request):
             return JSONResponse(status_code=404, content={"erro": "Temperatura não encontrada no Firebase."})
 
         temperatura = round(float(temperatura_raw), 1)
-        data_atual = datetime.now().strftime("%d/%m/%Y")
-        hora_atual = datetime.now().strftime("%H:%M")
+
+        # Hora em tempo real com fuso horário do Brasil
+        fuso = pytz.timezone("America/Sao_Paulo")
+        agora = datetime.now(fuso)
+        data_atual = agora.strftime("%d/%m/%Y")
+        hora_atual = agora.strftime("%H:%M:%S")
 
         return {
             "Temperatura (°C)": f"{temperatura} ºC",
